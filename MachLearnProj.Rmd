@@ -1,0 +1,86 @@
+---
+title: "Practical Machine Learning Project"
+output: html_document
+---
+##Background
+The data for this project comes from http://groupware.les.inf.puc-rio.br/har. To create this data set, six particiapants lifted a dumbell (1.25 kg) while wearing sensors on thier belt, forearm, arm, and on the dumbell.They each completed the exercise correctly and with four common mistakes as listed below. 
+
+- Classe A: Exercise performed correctly
+- Classe B: Elbows were thrown toward the front of the body during the lift
+- Classe C: Dumbell is lifted only half way
+- Classe D: Dumbell is lowered only half way
+- Classe E: The person's hips were thrown to the front during the lift
+
+This project aims to predict the classe of the exercise given the sensor data in this data set.
+
+##Data Analysis
+First, the data was downloaded, saved, and loaded into R as a dataframe.
+```{r, echo = FALSE,message=FALSE,warning=FALSE}
+library(caret) #for machine learning
+library(rpart) #for classification tree
+library(rattle) #for fancy tree plot
+library(kernlab) #for svm model
+```
+```{r}
+# download.file("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv",destfile="TrainingData.csv", method="curl")
+data<-read.csv("./TrainingData.csv",na.strings=c("","NA"))
+```
+The original data set consisted of 19622 rows and 160 columns. The columns containing the row number and name of the participant were immediately excluded from the data set so they could not be used as predictors. The data was then reduced to contain only the columns without any missing values. The resulting data set contained 58 columns, including the outcome variable (classe).
+```{r}
+data<-data[ ,3:160]
+clean_data<-data[, !is.na(data[1,])]
+```
+
+##Cross Validation
+In order to avoid overfitting and get a better estimation of how the algorithm will preform on future datasets, the given data is divided into two partitions: training and testing. Seventy percent of the data is used in the training set to train the predictive machine learning algorithms. Thirty percent of the data is used for the testing set which will be used to test the accuracy of these models. 
+
+```{r}
+set.seed(2014)
+inTrain<-createDataPartition(y=clean_data$classe,p=0.7,list=FALSE)
+training<-clean_data[inTrain,]
+testing<-clean_data[-inTrain,]
+```
+##Tree Prediction Method (rpart)
+The first model used to predict the outcome (classe) is a simple tree algorthm called "rpart". The tree algorithm works by iteratively splitting the variables into groups and evaluating the homogenaity of each group. A picture of the model which has been fit to the training set is shown below. 
+
+```{r}
+#train the model
+modFit<-train(classe ~.,method="rpart",data=training)
+#calculate accuracy
+pred<-predict(modFit,newdata=testing)
+acc<-((sum(pred==testing$classe))/dim(testing)[1])*100
+oosError<-100-acc
+#plot the decision tree
+fancyRpartPlot(modFit$finalModel)
+```
+
+
+*Figure 1: graphical representation of decision tree for rpart model*
+
+This model is beneficial because it is very easy to interperate. Using the graphical decision tree above, a human could very quickly and easliy make predictions on new data without using a computer. Unfortunately, when using this model to predict the outcome of the the testing data, the accuracy was only `r acc`% which means it has **a `r oosError`% out-of-sample error rate**. A second machine learning algorithm  was therefore attempted in hopes of achieveing a higher predictive accuracy.
+
+##Least Squares Support Vector Machine
+The next model trained was a support vector machine algorithm from the kernlab package. This model has a built in scaling function that normalizes the data before processing. The basic idea behind a support vector machine algorithm is to map the data points onto a higher dimmensional space in hopes of creating more seperation between points. The following code was used to trian the least squares support vector machine on the training set and then determine its accuracy by making predictions on the testing set.
+
+```{r,echo=FALSE,warning=FALSE,message=FALSE}
+set.seed(2014)
+inTrain<-createDataPartition(y=clean_data$classe,p=0.7,list=FALSE)
+training<-clean_data[inTrain,]
+testing<-clean_data[-inTrain,]
+```
+```{r,warning=FALSE,message=FALSE}
+#training
+svmFit<-lssvm(classe ~.,data=training)
+#prediction
+svmPred<-predict(svmFit,newdata=testing)
+mat<-confusionMatrix(data=svmPred,testing$classe)
+accuracy<-mat$overall[1]*100
+error<-100-accuracy
+mat$table
+```
+*Table 1: The Confusion Matrix for the least squares support vector machine model that was trained on the "training" data and validated on the "testing" data*
+
+As found in the confusion matrix, the least squares SVM had an accuracy of `r accuracy`% on the testing set. This results in an **out-of-sample error rate of `r error`%**. 
+
+##Conclusion
+The rpart tree classification model was beneficial because it was easy to interperate. However, of the two methods examined, the least squares support vector machine was much more accurate and had a lower out of sample error rate than the rpart tree classification model.
