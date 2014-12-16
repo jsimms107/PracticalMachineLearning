@@ -1,5 +1,5 @@
 PracticalMachineLearning
 ========================
-The following is a link to the compiled html document for the Practical Machine learning project write-up.
+The following is a link to the compiled html document for the Practical Machine learning project write-up. Feel free to use it while grading.
 
-hello
+http://jsimms107.github.io/PracticalMachineLearning/MachLearnProj.html
